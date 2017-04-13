@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>    
+	<meta charset="utf-8" />
+    <title>Duyen Doan's Frequency Analysis</title>
+<!-- ************************************************************************ -->	
+<style>
+body {
+	background-color: #ccc;
+	color: #000;
+	text-align: center;
+}
+svg {
+	background-color: #fff;
+	border-style: solid;
+	border-width: thick;
+	border-color: #000;
+}
+</style>
+<!-- ************************************************************************ -->
+<script src="http://code.jquery.com/jquery-1.11.1.min.js"></script>
+<script>
+/*Lab: Frequency Analysis
+- Have a textarea where the user can enter some text.
+When a button is clicked, break the text into an array of letters and count the frequency (number of occurrences) of each letter -- 
+case insensitive. Disable the button. (Before breaking the text into letters, eliminate spaces, punctuation, etc.)
+Use JavaScript/jQuery to make an svg histogram showing the frequency of each letter.
+- Also calculate the information entropy -- the sum of - pi log2(pi) where pi is the probability of the ith letter which we will 
+take to be its frequency divided by the total number of letter occurrences. (The information entropy is the number of bits conveyed by 
+each letter.) You can use Math.log2(x) to obtain the log base 2 of a number. A check on your results is that the information entropy 
+is less than or equal to the information capacity which in this case is log2 (26) = 4.70044 bits/letter
+Clear the histogram if the user changes the content of the textarea. Enable the button.
+*/
+$(document).ready(function(){
+	var usrChar=[];
+	var labelChar=[];
+	var letter = new RegExp('^[A-Za-z]$');
+	var histoHeight = $("#svgHisto").attr("height");
+	var histoWidth = $("#svgHisto").attr("width");
+	var freq = [];
+	var infoEntropy=0;
+	
+	$("#btnCount").click(function(){
+		var userInput = $("#taText").val().toUpperCase();
+		var sumOccur = 0;
+		
+		// only take letters in the userInput, remove other spaces, punctuation, etc.
+		for (var i = 0; i < userInput.length; i++){
+			if (letter.test(userInput.charAt(i))){
+				usrChar.push(userInput.charAt(i));
+			}
+		}
+		
+		// get an array of all characters, one character exists only once in the array - used for labels at the bottom of svg
+		for (var i = 0; i < usrChar.length; i++){
+			if (labelChar.indexOf(usrChar[i])==-1){
+				labelChar.push(usrChar[i]);
+			}
+		}
+		
+		// calculate frequency: http://stackoverflow.com/questions/18619785/counting-frequency-of-characters-in-a-string-using-javascript
+		var freqOb = {};
+		for (var i=0; i < usrChar.length;i++) {
+			var character = usrChar[i];
+			if (freqOb[character]) {
+			freqOb[character]++;
+			} else {
+			freqOb[character] = 1;
+			}
+		}
+		
+		// convert object freqOb to array freq: http://stackoverflow.com/questions/6857468/converting-a-js-object-to-an-array
+		var freq = Object.keys(freqOb).map(function (key) { return freqOb[key]; });
+		
+		
+		// Make svg histogram
+		var highestFreq = Math.max.apply(null, freq);  // find the max of the freq array
+		var heightFactor = parseInt((histoHeight - 20) / highestFreq);
+        // used to scale heights so histogram "fills" the svg vertically 
+		var widthFactor = parseInt(histoWidth / freq.length);
+	    // used to scale heights so histogram "fills" the svg horizontally 
+		
+		$("#svgHisto").empty();  //jQuery method to clear out old histogram results
+
+		for (var i=0; i< freq.length; i++){
+		    //alert(labelChar[i] + ": " + freq[i]);
+			
+			sumOccur += freq[i];
+			
+            //make vertical bars
+			var myRect = document.createElementNS("http://www.w3.org/2000/svg", 'rect');
+            myRect.setAttributeNS(null, 'x', 5+widthFactor*i);
+			myRect.setAttributeNS(null, 'width', widthFactor-5);
+			myRect.setAttributeNS(null, 'y', histoHeight - heightFactor * freq[i]);
+		    //the y is the distance from the top of the svg to the top of the bar 
+            // if freq[i] = 0 then y is the height of the svg -- so the y is at the bootom of the svg 
+			myRect.setAttributeNS(null, 'height', heightFactor * freq[i]);
+            //note that 'y' and 'height' is equal to histoHeight
+            myRect.setAttributeNS(null, 'fill', '#99f');  //light blue
+			myRect.setAttributeNS(null, 'stroke', '#339'); //dark blue
+			myRect.setAttributeNS(null, 'stroke-width', '3');
+            document.getElementById('svgHisto').appendChild(myRect);
+			
+            //frequency labels on top of bars
+			var myText = document.createElementNS("http://www.w3.org/2000/svg", 'text');
+            myText.setAttributeNS(null, 'x', widthFactor*i+widthFactor/2-2);
+            myText.setAttributeNS(null, 'y', histoHeight - heightFactor * freq[i] - 5);
+            //compare to the y of the rect -- it is slightly less therefore above 
+            myText.setAttributeNS(null, 'fill', '#000');
+			myText.textContent = freq[i];
+            document.getElementById('svgHisto').appendChild(myText);
+			
+            //quantity label at the bottom of bar
+			var myText2 = document.createElementNS("http://www.w3.org/2000/svg", 'text');
+            myText2.setAttributeNS(null, 'x', widthFactor*i+widthFactor/2-2);
+            myText2.setAttributeNS(null, 'y', histoHeight - 10);
+            // very close to the bottom
+            myText2.setAttributeNS(null, 'fill', '#fff');
+            myText2.textContent = labelChar[i];
+            document.getElementById('svgHisto').appendChild(myText2);
+		}
+		
+		// disable btnCount
+		$("#btnCount").prop('disabled', true);
+		alert(sumOccur);
+		
+		// calculate information entropy
+		for (var i=0; i<freq.length; i++){
+			infoEntropy += (-freq[i]/sumOccur)*Math.log2(freq[i]/sumOccur);
+		}
+		$("#txtInfoEntropy").val(infoEntropy);
+	});
+	
+
+    // change content of textarea -- clear out svg and other arrays
+	$("#taText").click(function(){	// clear out svg when clicking inside the textarea
+			$("#svgHisto").empty();
+			usrChar=[];
+			labelChar=[];
+			infoEntropy = 0;
+			$("#txtInfoEntropy").val("");
+			$("#btnCount").prop('disabled', false);
+	});
+	$("#taText").change(function(){	//only fire when click outside the textarea (before clicking the button)
+			$("#svgHisto").empty();
+			usrChar=[];
+			labelChar=[];
+			infoEntropy = 0;
+			$("#txtInfoEntropy").val("");
+			$("#btnCount").prop('disabled', false);
+	});
+});//end document ready
+
+</script>
+
+</head>
+<body>
+<h1>Duyen Doan's Frequency Analysis</h1>
+<label for="taText">Type here: </label> <br />
+<textarea id="taText" cols="50" rows="2"></textarea> <br />
+<svg id="svgHisto" width="600" height="400">
+</svg><br /><br />
+
+<label for="txtInfoEntropy">Information Entropy: </label>
+<input id="txtInfoEntropy"/>
+<br /><br />
+
+<input id="btnCount" type="button" value="Count Frequency" />
+</body>
+</html>
